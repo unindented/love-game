@@ -1,0 +1,30 @@
+version: '{build}'
+
+environment:
+  matrix:
+    - platform: x86
+      configuration: Release
+
+    - platform: x64
+      configuration: Release
+
+init:
+- ps: Update-AppveyorBuild -Version "$(Get-Date -format yyyyMMdd).$env:APPVEYOR_BUILD_NUMBER"
+
+build_script:
+  - cmd: C:\MinGW\bin\mingw32-make win%PLATFORM%-archive
+
+artifacts:
+  - path: 'archive/*'
+
+deploy:
+  tag: '%APPVEYOR_REPO_TAG_NAME%'
+  release: '%APPVEYOR_REPO_TAG_NAME%'
+  description: 'Release %APPVEYOR_REPO_TAG_NAME%'
+  artifact: /.*/
+  provider: GitHub
+  auth_token:
+    secure: Ua5jejcMBcweX5oLiVd5tC1x82m2zOalGinJnptxF4rklDiFFCfqx5ZGb8nNhhyq
+  on:
+    branch: master
+    appveyor_repo_tag: true

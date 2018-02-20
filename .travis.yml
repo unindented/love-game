@@ -1,0 +1,54 @@
+matrix:
+  include:
+    - language: c
+      script:
+        - make dist
+        # We're building snaps through build.snapcraft.io
+        # - make linux-build
+
+    - language: objective-c
+      os: osx
+      osx_image: xcode9.2
+      sudo: true
+      install:
+        - gem install xcodeproj
+      script:
+        - make ios-archive
+        - make macos-archive
+
+    - language: android
+      jdk: oraclejdk8
+      android:
+        components:
+          - tools
+          - platform-tools
+          - build-tools-26.0.2
+          - android-25
+      before_install:
+        - mkdir -p "$HOME/tmp"
+        - wget -P "$HOME/tmp" https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
+        - unzip -d "$HOME" -oq "$HOME/tmp/android-ndk-r14b-linux-x86_64.zip"
+        - rm -fr "$HOME/tmp"
+        - export ANDROID_NDK_HOME="$HOME/android-ndk-r14b"
+      before_cache:
+        - rm -f "$HOME/.gradle/caches/modules-2/modules-2.lock"
+        - rm -fr "$HOME/.gradle/caches/*/plugin-resolution/"
+      cache:
+        directories:
+          - "$HOME/.gradle/caches/"
+          - "$HOME/.gradle/wrapper/"
+          - "$HOME/.android/build-cache"
+      script:
+        - make android-archive
+
+deploy:
+  skip_cleanup: true
+  provider: releases
+  file_glob: true
+  file:
+    - "archive/*"
+    - "dist/*"
+  api_key:
+    secure: "TePrOmMacc+V1PqJafbxecC7MbLVY/RlvaH16bNRVKVTbc70DiBRToSbB6OAYtvzf9fabPm+DZhOKwAStI0V4R0XSg0MbLObldsFFy4QLimeSYNXz+6cgmsbVG649RlcXnZAaxFwi/PKqzeNx9MyWFxlhRL+6PjKqv3VoT8+4W1HaNG5wcWlAJn7a4D7HAAeaglA2aW8tZ+PmJ3kTZb+oq5GkLhKpKKrSxZAvT/rV2vVoWOtY9FItAkMfIYn1iizWpBqT3sYndYXzgQLRvJ3agOYM79HdqGRstB7Tfq774nZj169Xx5LqSIW8YDz7Pi7mh+o06Q7CR0TW9PpVn8Wh0WtsE/l1BFq6Clj+NbajpnFWOTp04s99jaCmVoUP+DK6lZjQFG28+D+7VxEXc6JtN0uhaub0rzh6Qph/XksswVTdYbhJ9+rUR0I+Vu+6YTSk9orkKNU2tn8p/a4nAWXFXgEwWc0OlgnPx3i6V2FSBb9kHoZOw9sHRTEYETY4Qhjplg4HvIkPKxhsYFHNo6c4z1uZ1wutWykn+eoaxenwZ7aEE5rfPkcczfGoMBJg5lwCuhjVEpnDqrj05jCxmfOMmTArmV90x+2I8iX2afd3jxTHJYVlsjwY/7EntzE5rwNVT3o/N+E2eTSkd/0g9amWi/4dTJwFdL7OP/tVWKyDYE="
+  on:
+    tags: true

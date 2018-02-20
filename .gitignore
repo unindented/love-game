@@ -1,0 +1,9 @@
+/archive/
+/dist/
+/parts/
+/prime/
+/stage/
+/vendor/
+.*
+*.log
+*.snap
