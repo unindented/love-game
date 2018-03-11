@@ -1,6 +1,7 @@
-GAME_NAME := love-game
-GAME_VERSION := $(shell git describe --tags $(shell git rev-list --tags --max-count=1))
-LOVE_VERSION := 0.10.2
+include .env
+
+# This value doesn't get loaded properly from the `.env` file.
+GAME_VERSION := $(shell git describe --tags --abbrev=0)
 
 # URLS =========================================================================
 
@@ -16,9 +17,19 @@ LOVE_MACOS_LIBRARIES_URL := https://love2d.org/sdk/$(LOVE_MACOS_LIBRARIES_ZIP)
 LOVE_IOS_LIBRARIES_ZIP := love-$(LOVE_VERSION)-ios-libraries.zip
 LOVE_IOS_LIBRARIES_URL := https://bitbucket.org/rude/love/downloads/$(LOVE_IOS_LIBRARIES_ZIP)
 
+RCEDIT_WINX86_APP_EXE := rcedit-x86.exe
+RCEDIT_WINX86_APP_URL := https://ci.appveyor.com/api/projects/zcbenz/rcedit/artifacts/Default/$(RCEDIT_WINX86_APP_EXE)?branch=master&job=Platform%3A+Win32
+RCEDIT_WINX64_APP_EXE := rcedit-x64.exe
+RCEDIT_WINX64_APP_URL := https://ci.appveyor.com/api/projects/zcbenz/rcedit/artifacts/Default/$(RCEDIT_WINX64_APP_EXE)?branch=master&job=Platform%3A+x64
+
 # DIRS & FILES =================================================================
 
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
+RCEDIT_DIR := $(ROOT_DIR)/vendor/rcedit
+
+RCEDIT_WINX86_APP := $(RCEDIT_DIR)/$(RCEDIT_WINX86_APP_EXE)
+RCEDIT_WINX64_APP := $(RCEDIT_DIR)/$(RCEDIT_WINX64_APP_EXE)
 
 LOVE_DIR := $(ROOT_DIR)/vendor/love
 LOVE_LINUX_DIR := $(LOVE_DIR)/platform/unix
@@ -30,7 +41,9 @@ LOVE_MACOS_LIBRARIES_DIR := /Library/Frameworks
 LOVE_IOS_DIR := $(LOVE_XCODE_DIR)/ios
 LOVE_IOS_LIBRARIES_DIR := $(LOVE_IOS_DIR)
 LOVE_ANDROID_DIR := $(ROOT_DIR)/vendor/love-android
-LOVE_ANDROID_RES_DIR := $(LOVE_ANDROID_DIR)/app/src/main/assets
+LOVE_ANDROID_MAIN_DIR := $(LOVE_ANDROID_DIR)/app/src/main
+LOVE_ANDROID_ASSETS_DIR := $(LOVE_ANDROID_MAIN_DIR)/assets
+LOVE_ANDROID_RES_DIR := $(LOVE_ANDROID_MAIN_DIR)/res
 
 LOVE_MACOS_LIBRARIES := FreeType.framework Lua.framework Ogg.framework OpenAL-Soft.framework SDL2.framework Theora.framework Vorbis.framework libmodplug.framework mpg123.framework physfs.framework
 LOVE_MACOS_LIBRARIES := $(addprefix $(LOVE_MACOS_LIBRARIES_DIR)/, $(LOVE_MACOS_LIBRARIES))
@@ -39,6 +52,8 @@ LOVE_IOS_LIBRARIES := include libraries
 LOVE_IOS_LIBRARIES := $(addprefix $(LOVE_IOS_LIBRARIES_DIR)/, $(LOVE_IOS_LIBRARIES))
 
 SRC_DIR := $(ROOT_DIR)/src
+ASSETS_DIR := $(ROOT_DIR)/assets
+IMAGES_DIR := $(ASSETS_DIR)/images
 DIST_DIR := $(ROOT_DIR)/dist
 ARCHIVE_DIR := $(ROOT_DIR)/archive
 
@@ -59,6 +74,12 @@ WINX64_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-winx64-$(GAME_VERSION).zip
 MACOS_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-macos-$(GAME_VERSION).zip
 IOS_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-ios-$(GAME_VERSION).zip
 ANDROID_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-android-$(GAME_VERSION).apk
+
+IMAGES_FILE := $(IMAGES_DIR)/images.fig
+WIN_ICON := $(IMAGES_DIR)/windows/icon.ico
+MACOS_ICON := $(IMAGES_DIR)/xcode/Images.xcassets
+IOS_ICON := $(IMAGES_DIR)/xcode/Images.xcassets
+ANDROID_ICONS := $(IMAGES_DIR)/android
 
 # TASKS ========================================================================
 
@@ -103,6 +124,15 @@ $(DIST_DIR):
 $(ARCHIVE_DIR):
 	mkdir -p "$(ARCHIVE_DIR)"
 
+$(RCEDIT_DIR):
+	mkdir -p "$(RCEDIT_DIR)"
+
+$(RCEDIT_WINX86_APP): | $(RCEDIT_DIR)
+	curl -fsSL -o "$(RCEDIT_WINX86_APP)" "$(RCEDIT_WINX86_APP_URL)"
+
+$(RCEDIT_WINX64_APP): | $(RCEDIT_DIR)
+	curl -fsSL -o "$(RCEDIT_WINX64_APP)" "$(RCEDIT_WINX64_APP_URL)"
+
 $(LOVE_DIR):
 	hg clone $(LOVE_REPOSITORY_URL) -r $(LOVE_VERSION) "$(LOVE_DIR)"
 
@@ -112,7 +142,7 @@ $(LOVE_ANDROID_DIR):
 ## CLEAN =======================================================================
 
 clean:
-	rm -fr "$(DIST_DIR)" "$(ARCHIVE_DIR)" "$(LOVE_DIR)" "$(LOVE_ANDROID_DIR)"
+	rm -fr "$(DIST_DIR)" "$(ARCHIVE_DIR)" "$(RCEDIT_DIR)" "$(LOVE_DIR)" "$(LOVE_ANDROID_DIR)"
 
 ## DIST ========================================================================
 
@@ -155,7 +185,7 @@ winx86-launch: $(WINX86_APP)
 
 winx86-archive: $(WINX86_ARCHIVE)
 
-$(WINX86_APP): $(DIST_FILE) | $(LOVE_DIR)
+$(WINX86_APP): $(DIST_FILE) $(RCEDIT_WINX86_APP) | $(LOVE_DIR)
 # Download and extract LÖVE binaries.
 	$(eval TMP := C:$(shell mktemp -d))
 	mkdir -p "$(TMP)"
@@ -165,12 +195,18 @@ $(WINX86_APP): $(DIST_FILE) | $(LOVE_DIR)
 	mkdir -p "$(LOVE_WINX86_DIR)"
 	cp -r "$(TMP)/." "$(LOVE_WINX86_DIR)/"
 	rm -fr "$(TMP)"
+# Customize the executables.
+	"$(RCEDIT_WINX86_APP)" "$(LOVE_WINX86_DIR)/love.exe" --set-icon "$(WIN_ICON)" --set-file-version "$(GAME_VERSION)" --set-product-version "$(GAME_VERSION)" --set-version-string "FileDescription" "$(GAME_TITLE) $(GAME_VERSION)" --set-version-string "ProductName" "$(GAME_TITLE)" --set-version-string "Company" "$(GAME_AUTHOR)" --set-version-string "LegalCopyright" "Copyright $(GAME_AUTHOR)" --set-version-string "OriginalFilename" "$(GAME_NAME).exe"
+	"$(RCEDIT_WINX86_APP)" "$(LOVE_WINX86_DIR)/lovec.exe" --set-icon "$(WIN_ICON)" --set-file-version "$(GAME_VERSION)" --set-product-version "$(GAME_VERSION)" --set-version-string "FileDescription" "$(GAME_TITLE) $(GAME_VERSION)" --set-version-string "ProductName" "$(GAME_TITLE)" --set-version-string "Company" "$(GAME_AUTHOR)" --set-version-string "LegalCopyright" "Copyright $(GAME_AUTHOR)" --set-version-string "OriginalFilename" "$(GAME_NAME).exe"
 # Concatenate our game to the main and console binaries.
-	cat "$(LOVE_WINX86_DIR)/love.exe" "$(DIST_FILE)" > $(WINX86_APP)
-	cat "$(LOVE_WINX86_DIR)/lovec.exe" "$(DIST_FILE)" > $(WINX86_APP_CONSOLE)
+	cat "$(LOVE_WINX86_DIR)/love.exe" "$(DIST_FILE)" > "$(WINX86_APP)"
+	cat "$(LOVE_WINX86_DIR)/lovec.exe" "$(DIST_FILE)" > "$(WINX86_APP_CONSOLE)"
 # Clean up.
+	rm "$(LOVE_WINX86_DIR)/game.ico"
+	rm "$(LOVE_WINX86_DIR)/love.ico"
 	rm "$(LOVE_WINX86_DIR)/love.exe"
 	rm "$(LOVE_WINX86_DIR)/lovec.exe"
+	rm "$(LOVE_WINX86_DIR)/readme.txt"
 # List dir for debugging.
 	ls -al "$(dir $(WINX86_APP))"
 
@@ -191,7 +227,7 @@ winx64-launch: $(WINX64_APP)
 
 winx64-archive: $(WINX64_ARCHIVE)
 
-$(WINX64_APP): $(DIST_FILE) | $(LOVE_DIR)
+$(WINX64_APP): $(DIST_FILE) $(RCEDIT_WINX64_APP) | $(LOVE_DIR)
 # Download and extract LÖVE binaries.
 	$(eval TMP := C:$(shell mktemp -d))
 	mkdir -p "$(TMP)"
@@ -201,12 +237,18 @@ $(WINX64_APP): $(DIST_FILE) | $(LOVE_DIR)
 	mkdir -p "$(LOVE_WINX64_DIR)"
 	cp -r "$(TMP)/." "$(LOVE_WINX64_DIR)/"
 	rm -fr "$(TMP)"
+# Customize the executables.
+	"$(RCEDIT_WINX64_APP)" "$(LOVE_WINX64_DIR)/love.exe" --set-icon "$(WIN_ICON)" --set-file-version "$(GAME_VERSION)" --set-product-version "$(GAME_VERSION)" --set-version-string "FileDescription" "$(GAME_TITLE) $(GAME_VERSION)" --set-version-string "ProductName" "$(GAME_TITLE)" --set-version-string "Company" "$(GAME_AUTHOR)" --set-version-string "LegalCopyright" "Copyright $(GAME_AUTHOR)" --set-version-string "OriginalFilename" "$(GAME_NAME).exe"
+	"$(RCEDIT_WINX64_APP)" "$(LOVE_WINX64_DIR)/lovec.exe" --set-icon "$(WIN_ICON)" --set-file-version "$(GAME_VERSION)" --set-product-version "$(GAME_VERSION)" --set-version-string "FileDescription" "$(GAME_TITLE) $(GAME_VERSION)" --set-version-string "ProductName" "$(GAME_TITLE)" --set-version-string "Company" "$(GAME_AUTHOR)" --set-version-string "LegalCopyright" "Copyright $(GAME_AUTHOR)" --set-version-string "OriginalFilename" "$(GAME_NAME).exe"
 # Concatenate our game to the main and console binaries.
 	cat "$(LOVE_WINX64_DIR)/love.exe" "$(DIST_FILE)" > $(WINX64_APP)
 	cat "$(LOVE_WINX64_DIR)/lovec.exe" "$(DIST_FILE)" > $(WINX64_APP_CONSOLE)
 # Clean up.
+	rm "$(LOVE_WINX64_DIR)/game.ico"
+	rm "$(LOVE_WINX64_DIR)/love.ico"
 	rm "$(LOVE_WINX64_DIR)/love.exe"
 	rm "$(LOVE_WINX64_DIR)/lovec.exe"
+	rm "$(LOVE_WINX64_DIR)/readme.txt"
 # List dir for debugging.
 	ls -al "$(LOVE_WINX64_DIR)"
 
@@ -236,8 +278,15 @@ $(LOVE_MACOS_LIBRARIES): | $(LOVE_DIR)
 	rm -fr "$(TMP)"
 
 $(MACOS_APP): $(DIST_FILE) $(LOVE_MACOS_LIBRARIES) | $(LOVE_DIR)
+# Replace icons.
+	rm -rf "$(LOVE_XCODE_DIR)/Images.xcassets"
+	cp -r "$(MACOS_ICON)" "$(LOVE_XCODE_DIR)/"
 # Ensure our game gets copied during build.
 	ruby tasks/xcode/add_resource.rb "$(LOVE_XCODE_DIR)/love.xcodeproj" "$(DIST_FILE)"
+# Tweak project file.
+	ruby tasks/xcode/tweak_project.rb "$(LOVE_XCODE_DIR)/love.xcodeproj"
+# Tweak plist file.
+	ruby tasks/xcode/tweak_plist.rb "$(LOVE_MACOS_DIR)/love-macosx.plist"
 # Build LÖVE binaries.
 	xcrun xcodebuild \
 		-project "$(LOVE_XCODE_DIR)/love.xcodeproj" \
@@ -246,7 +295,7 @@ $(MACOS_APP): $(DIST_FILE) $(LOVE_MACOS_LIBRARIES) | $(LOVE_DIR)
 		-derivedDataPath "$(LOVE_MACOS_DIR)/" \
 		build
 # Rename app.
-	mv "$(dir $(MACOS_APP))/love.app" "$(MACOS_APP)"
+	mv "$(dir $(MACOS_APP))love.app" "$(MACOS_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(MACOS_APP))"
 
@@ -280,8 +329,15 @@ $(LOVE_IOS_LIBRARIES): | $(LOVE_DIR)
 	rm -fr "$(TMP)"
 
 $(IOS_APP): $(DIST_FILE) $(LOVE_IOS_LIBRARIES) | $(LOVE_DIR)
+# Replace icons.
+	rm -rf "$(LOVE_XCODE_DIR)/Images.xcassets"
+	cp -r "$(IOS_ICON)" "$(LOVE_XCODE_DIR)/"
 # Ensure our game gets copied during build.
 	ruby tasks/xcode/add_resource.rb "$(LOVE_XCODE_DIR)/love.xcodeproj" "$(DIST_FILE)"
+# Tweak project file.
+	ruby tasks/xcode/tweak_project.rb "$(LOVE_XCODE_DIR)/love.xcodeproj"
+# Tweak plist file.
+	ruby tasks/xcode/tweak_plist.rb "$(LOVE_IOS_DIR)/love-ios.plist"
 # Build LÖVE binaries.
 	xcrun xcodebuild \
 		-project "$(LOVE_XCODE_DIR)/love.xcodeproj" \
@@ -291,7 +347,7 @@ $(IOS_APP): $(DIST_FILE) $(LOVE_IOS_LIBRARIES) | $(LOVE_DIR)
 		-derivedDataPath "$(LOVE_IOS_DIR)/" \
 		build
 # Rename app.
-	mv "$(dir $(IOS_APP))/love.app" "$(IOS_APP)"
+	mv "$(dir $(IOS_APP))love.app" "$(IOS_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(IOS_APP))"
 
@@ -317,18 +373,26 @@ android-archive: $(ANDROID_ARCHIVE)
 
 $(ANDROID_APP): $(DIST_FILE) | $(LOVE_ANDROID_DIR)
 # Configure SDK and NDK paths.
-	echo "sdk.dir=$(ANDROID_HOME)" >> "$(LOVE_ANDROID_DIR)/local.properties"
+	echo "sdk.dir=$(ANDROID_HOME)" > "$(LOVE_ANDROID_DIR)/local.properties"
 	echo "ndk.dir=$(ANDROID_NDK_HOME)" >> "$(LOVE_ANDROID_DIR)/local.properties"
 # Add missing `google()` repository.
 	grep -q 'google' "$(LOVE_ANDROID_DIR)/build.gradle" ||\
 		sed -i -e '/jcenter()/a\ \ \ \ \ \ \ \ google()' "$(LOVE_ANDROID_DIR)/build.gradle"
+# Tweak build parameters.
+	sed -i -e 's/applicationId "$(LOVE_BUNDLE_IDENTIFIER)"/applicationId "$(GAME_BUNDLE_IDENTIFIER)"/' "$(LOVE_ANDROID_DIR)/app/build.gradle"
+	sed -i -e 's/versionName "$(LOVE_VERSION)"/versionName "$(GAME_VERSION)"/' "$(LOVE_ANDROID_DIR)/app/build.gradle"
 # Copy our game.
+	mkdir -p $(LOVE_ANDROID_ASSETS_DIR)
+	cp "$(DIST_FILE)" "$(LOVE_ANDROID_ASSETS_DIR)/"
+# Replace icons.
 	mkdir -p $(LOVE_ANDROID_RES_DIR)
-	cp "$(DIST_FILE)" "$(LOVE_ANDROID_RES_DIR)/"
+	cp -r "$(ANDROID_ICONS)"/* "$(LOVE_ANDROID_RES_DIR)/"
+# Tweak manifest file.
+	ruby tasks/xcode/tweak_manifest.rb "$(LOVE_ANDROID_MAIN_DIR)/AndroidManifest.xml"
 # Build Android binaries.
 	(cd "$(LOVE_ANDROID_DIR)" ; ./gradlew build)
 # Rename app.
-	mv "$(dir $(ANDROID_APP))/app-release-unsigned.apk" "$(ANDROID_APP)"
+	mv "$(dir $(ANDROID_APP))app-release-unsigned.apk" "$(ANDROID_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(ANDROID_APP))"
 
@@ -337,3 +401,11 @@ $(ANDROID_ARCHIVE): $(ANDROID_APP) | $(ARCHIVE_DIR)
 	cp "$(ANDROID_APP)" "$(ANDROID_ARCHIVE)"
 # List dir for debugging.
 	ls -al "$(dir $(ANDROID_ARCHIVE))"
+
+## ICONS =======================================================================
+
+icons: $(WIN_ICON)
+
+$(WIN_ICON): $(IMAGES_FILE)
+	convert assets/images/windows/icon-*.png assets/images/windows/icon.ico
+	rm assets/images/windows/icon-*.png

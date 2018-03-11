@@ -1,3 +1,4 @@
+require 'dotenv/load'
 require 'xcodeproj'
 
 project_path, resource_path = ARGV
