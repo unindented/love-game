@@ -85,6 +85,8 @@ ANDROID_ICONS := $(IMAGES_DIR)/android
 
 .PHONY: \
 	clean \
+	lint \
+	test \
 	dist \
 	install \
 	linux \
@@ -114,7 +116,7 @@ ANDROID_ICONS := $(IMAGES_DIR)/android
 	android-launch \
 	android-archive
 
-all: dist
+all: lint test dist
 
 ## SHARED ======================================================================
 
@@ -143,6 +145,17 @@ $(LOVE_ANDROID_DIR):
 
 clean:
 	rm -fr "$(DIST_DIR)" "$(ARCHIVE_DIR)" "$(RCEDIT_DIR)" "$(LOVE_DIR)" "$(LOVE_ANDROID_DIR)"
+
+## LINT & TEST =================================================================
+
+lint:
+	luacheck src spec
+
+test:
+	rm -f luacov.*
+	busted
+	luacov-console ./src
+	luacov-console -s
 
 ## DIST ========================================================================
 
@@ -279,7 +292,7 @@ $(LOVE_MACOS_LIBRARIES): | $(LOVE_DIR)
 
 $(MACOS_APP): $(DIST_FILE) $(LOVE_MACOS_LIBRARIES) | $(LOVE_DIR)
 # Replace icons.
-	rm -rf "$(LOVE_XCODE_DIR)/Images.xcassets"
+	rm -fr "$(LOVE_XCODE_DIR)/Images.xcassets"
 	cp -r "$(MACOS_ICON)" "$(LOVE_XCODE_DIR)/"
 # Ensure our game gets copied during build.
 	ruby tasks/xcode/add_resource.rb "$(LOVE_XCODE_DIR)/love.xcodeproj" "$(DIST_FILE)"
@@ -295,6 +308,7 @@ $(MACOS_APP): $(DIST_FILE) $(LOVE_MACOS_LIBRARIES) | $(LOVE_DIR)
 		-derivedDataPath "$(LOVE_MACOS_DIR)/" \
 		build
 # Rename app.
+	rm -fr "$(MACOS_APP)"
 	mv "$(dir $(MACOS_APP))love.app" "$(MACOS_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(MACOS_APP))"
@@ -330,7 +344,7 @@ $(LOVE_IOS_LIBRARIES): | $(LOVE_DIR)
 
 $(IOS_APP): $(DIST_FILE) $(LOVE_IOS_LIBRARIES) | $(LOVE_DIR)
 # Replace icons.
-	rm -rf "$(LOVE_XCODE_DIR)/Images.xcassets"
+	rm -fr "$(LOVE_XCODE_DIR)/Images.xcassets"
 	cp -r "$(IOS_ICON)" "$(LOVE_XCODE_DIR)/"
 # Ensure our game gets copied during build.
 	ruby tasks/xcode/add_resource.rb "$(LOVE_XCODE_DIR)/love.xcodeproj" "$(DIST_FILE)"
@@ -347,6 +361,7 @@ $(IOS_APP): $(DIST_FILE) $(LOVE_IOS_LIBRARIES) | $(LOVE_DIR)
 		-derivedDataPath "$(LOVE_IOS_DIR)/" \
 		build
 # Rename app.
+	rm -fr "$(IOS_APP)"
 	mv "$(dir $(IOS_APP))love.app" "$(IOS_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(IOS_APP))"
@@ -392,6 +407,7 @@ $(ANDROID_APP): $(DIST_FILE) | $(LOVE_ANDROID_DIR)
 # Build Android binaries.
 	(cd "$(LOVE_ANDROID_DIR)" ; ./gradlew build)
 # Rename app.
+	rm -f "$(ANDROID_APP)"
 	mv "$(dir $(ANDROID_APP))app-release-unsigned.apk" "$(ANDROID_APP)"
 # List dir for debugging.
 	ls -al "$(dir $(ANDROID_APP))"

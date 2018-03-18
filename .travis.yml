@@ -1,10 +1,18 @@
 matrix:
   include:
     - language: c
+      before_install:
+        - pip install hererocks --user
+        - hererocks lua_install --lua=5.1 --luarocks=latest
+        - source lua_install/bin/activate
       install:
         - bundle
+        - luarocks install luacheck
+        - luarocks install busted
+        - luarocks install luacov
+        - luarocks install luacov-console
       script:
-        - make dist
+        - make
         # We're building snaps through build.snapcraft.io
         # - make linux-build
 
@@ -12,9 +20,19 @@ matrix:
       os: osx
       osx_image: xcode9.2
       sudo: true
+      before_install:
+        - export PATH=$PATH:$HOME/Library/Python/2.7/bin
+        - pip install hererocks --user
+        - hererocks lua_install --lua=5.1 --luarocks=latest
+        - source lua_install/bin/activate
       install:
         - bundle
+        - luarocks install luacheck
+        - luarocks install busted
+        - luarocks install luacov
+        - luarocks install luacov-console
       script:
+        - make
         - make ios-archive
         - make macos-archive
 
@@ -32,8 +50,15 @@ matrix:
         - unzip -d "$HOME" -oq "$HOME/tmp/android-ndk-r14b-linux-x86_64.zip"
         - rm -fr "$HOME/tmp"
         - export ANDROID_NDK_HOME="$HOME/android-ndk-r14b"
+        - pip install hererocks --user
+        - hererocks lua_install --lua=5.1 --luarocks=latest
+        - source lua_install/bin/activate
       install:
         - bundle
+        - luarocks install luacheck
+        - luarocks install busted
+        - luarocks install luacov
+        - luarocks install luacov-console
       before_cache:
         - rm -f "$HOME/.gradle/caches/modules-2/modules-2.lock"
         - rm -fr "$HOME/.gradle/caches/*/plugin-resolution/"
@@ -43,6 +68,7 @@ matrix:
           - "$HOME/.gradle/wrapper/"
           - "$HOME/.android/build-cache"
       script:
+        - make
         - make android-archive
 
 deploy:

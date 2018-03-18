@@ -9,9 +9,22 @@ environment:
       configuration: Release
 
 init:
-- ps: Update-AppveyorBuild -Version "$(Get-Date -format yyyyMMdd).$env:APPVEYOR_BUILD_NUMBER"
+  - ps: Update-AppveyorBuild -Version "$(Get-Date -format yyyyMMdd).$env:APPVEYOR_BUILD_NUMBER"
+
+install:
+  - cmd: set PATH=C:\Python27\Scripts;%PATH%
+  - cmd: pip install hererocks
+  - cmd: hererocks lua_install --lua=5.1 --luarocks=latest
+  - cmd: call lua_install\bin\activate
+
+before_build:
+  - cmd: luarocks install luacheck
+  - cmd: luarocks install busted
+  - cmd: luarocks install luacov
+  - cmd: luarocks install luacov-console
 
 build_script:
+  - cmd: C:\MinGW\bin\mingw32-make
   - cmd: C:\MinGW\bin\mingw32-make win%PLATFORM%-archive
 
 artifacts:

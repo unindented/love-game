@@ -3,5 +3,5 @@ function love.conf(t)
   t.version = "0.10.2"
   t.console = false
 
-  t.window.title = "LÖVE Game"
+  t.window.title = "LOVE Game"
 end
