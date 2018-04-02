@@ -12,7 +12,7 @@ LOVE_WINX86_APP_ZIP := love-$(LOVE_VERSION)-win32.zip
 LOVE_WINX86_APP_URL := https://bitbucket.org/rude/love/downloads/$(LOVE_WINX86_APP_ZIP)
 LOVE_WINX64_APP_ZIP := love-$(LOVE_VERSION)-win64.zip
 LOVE_WINX64_APP_URL := https://bitbucket.org/rude/love/downloads/$(LOVE_WINX64_APP_ZIP)
-LOVE_MACOS_LIBRARIES_ZIP := love-osx-frameworks-$(basename $(LOVE_VERSION)).zip
+LOVE_MACOS_LIBRARIES_ZIP := love-osx-frameworks-0.10.zip
 LOVE_MACOS_LIBRARIES_URL := https://love2d.org/sdk/$(LOVE_MACOS_LIBRARIES_ZIP)
 LOVE_IOS_LIBRARIES_ZIP := love-$(LOVE_VERSION)-ios-libraries.zip
 LOVE_IOS_LIBRARIES_URL := https://bitbucket.org/rude/love/downloads/$(LOVE_IOS_LIBRARIES_ZIP)
@@ -32,12 +32,12 @@ RCEDIT_WINX86_APP := $(RCEDIT_DIR)/$(RCEDIT_WINX86_APP_EXE)
 RCEDIT_WINX64_APP := $(RCEDIT_DIR)/$(RCEDIT_WINX64_APP_EXE)
 
 LOVE_DIR := $(ROOT_DIR)/vendor/love
-LOVE_LINUX_DIR := $(LOVE_DIR)/platform/unix
 LOVE_WINX86_DIR := $(LOVE_DIR)/platform/winx86
 LOVE_WINX64_DIR := $(LOVE_DIR)/platform/winx64
 LOVE_XCODE_DIR := $(LOVE_DIR)/platform/xcode
 LOVE_MACOS_DIR := $(LOVE_XCODE_DIR)/macosx
-LOVE_MACOS_LIBRARIES_DIR := /Library/Frameworks
+LOVE_MACOS_SYSTEM_LIBRARIES_DIR := /Library/Frameworks
+LOVE_MACOS_LIBRARIES_DIR := $(LOVE_MACOS_DIR)/Frameworks
 LOVE_IOS_DIR := $(LOVE_XCODE_DIR)/ios
 LOVE_IOS_LIBRARIES_DIR := $(LOVE_IOS_DIR)
 LOVE_ANDROID_DIR := $(ROOT_DIR)/vendor/love-android
@@ -68,7 +68,6 @@ MACOS_APP := $(LOVE_MACOS_DIR)/Build/Products/Release/$(GAME_NAME).app
 IOS_APP := $(LOVE_IOS_DIR)/Build/Products/Release-iphonesimulator/$(GAME_NAME).app
 ANDROID_APP := $(LOVE_ANDROID_DIR)/app/build/outputs/apk/release/$(GAME_NAME).apk
 
-LINUX_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-linux-$(GAME_VERSION).snap
 WINX86_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-winx86-$(GAME_VERSION).zip
 WINX64_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-winx64-$(GAME_VERSION).zip
 MACOS_ARCHIVE := $(ARCHIVE_DIR)/$(GAME_NAME)-macos-$(GAME_VERSION).zip
@@ -89,10 +88,6 @@ ANDROID_ICONS := $(IMAGES_DIR)/android
 	test \
 	dist \
 	install \
-	linux \
-	linux-build \
-	linux-launch \
-	linux-archive \
 	winx86 \
 	winx86-build \
 	winx86-launch \
@@ -136,7 +131,7 @@ $(RCEDIT_WINX64_APP): | $(RCEDIT_DIR)
 	curl -fsSL -o "$(RCEDIT_WINX64_APP)" "$(RCEDIT_WINX64_APP_URL)"
 
 $(LOVE_DIR):
-	hg clone $(LOVE_REPOSITORY_URL) -r $(LOVE_VERSION) "$(LOVE_DIR)"
+	hg clone $(LOVE_REPOSITORY_URL) -r $(basename $(LOVE_VERSION)) "$(LOVE_DIR)"
 
 $(LOVE_ANDROID_DIR):
 	git clone $(LOVE_ANDROID_REPOSITORY_URL) -b $(basename $(LOVE_VERSION)).x "$(LOVE_ANDROID_DIR)"
@@ -169,23 +164,6 @@ $(DIST_FILE): $(SRC_FILES) | $(DIST_DIR)
 
 install: $(DIST_FILE)
 	cp $(DIST_FILE) $(DESTDIR)
-
-## LINUX =======================================================================
-
-linux: linux-build linux-launch
-
-linux-build: $(LINUX_ARCHIVE)
-
-linux-launch: $(LINUX_ARCHIVE)
-	snap install --devmode "$(LINUX_ARCHIVE)"
-	snap run $(GAME_NAME)
-
-linux-archive: $(LINUX_ARCHIVE)
-
-$(LINUX_ARCHIVE): $(DIST_FILE) | $(ARCHIVE_DIR)
-	snapcraft snap --output $(LINUX_ARCHIVE)
-# List dir for debugging.
-	ls -al "$(dir $(LINUX_ARCHIVE))"
 
 ## WINX86 ======================================================================
 
@@ -287,7 +265,9 @@ $(LOVE_MACOS_LIBRARIES): | $(LOVE_DIR)
 	$(eval TMP := $(shell mktemp -d))
 	wget -P "$(TMP)" "$(LOVE_MACOS_LIBRARIES_URL)"
 	unzip -d "$(TMP)" "$(TMP)/$(LOVE_MACOS_LIBRARIES_ZIP)"
-	sudo cp -r "$(TMP)/$(basename $(LOVE_MACOS_LIBRARIES_ZIP))/." "$(LOVE_MACOS_LIBRARIES_DIR)/"
+	mkdir -p "$(LOVE_MACOS_LIBRARIES_DIR)"
+	cp -r "$(TMP)/$(basename $(LOVE_MACOS_LIBRARIES_ZIP))/." "$(LOVE_MACOS_LIBRARIES_DIR)/"
+	sudo cp -r "$(TMP)/$(basename $(LOVE_MACOS_LIBRARIES_ZIP))/." "$(LOVE_MACOS_SYSTEM_LIBRARIES_DIR)/"
 	rm -fr "$(TMP)"
 
 $(MACOS_APP): $(DIST_FILE) $(LOVE_MACOS_LIBRARIES) | $(LOVE_DIR)
@@ -339,6 +319,7 @@ $(LOVE_IOS_LIBRARIES): | $(LOVE_DIR)
 	$(eval TMP := $(shell mktemp -d))
 	wget -P "$(TMP)" "$(LOVE_IOS_LIBRARIES_URL)"
 	unzip -d "$(TMP)" "$(TMP)/$(LOVE_IOS_LIBRARIES_ZIP)"
+	mkdir -p "$(LOVE_IOS_LIBRARIES_DIR)"
 	cp -r "$(TMP)/$(basename $(LOVE_IOS_LIBRARIES_ZIP))/." "$(LOVE_IOS_LIBRARIES_DIR)/"
 	rm -fr "$(TMP)"
 
@@ -397,10 +378,10 @@ $(ANDROID_APP): $(DIST_FILE) | $(LOVE_ANDROID_DIR)
 	sed -i -e 's/applicationId "$(LOVE_BUNDLE_IDENTIFIER)"/applicationId "$(GAME_BUNDLE_IDENTIFIER)"/' "$(LOVE_ANDROID_DIR)/app/build.gradle"
 	sed -i -e 's/versionName "$(LOVE_VERSION)"/versionName "$(GAME_VERSION)"/' "$(LOVE_ANDROID_DIR)/app/build.gradle"
 # Copy our game.
-	mkdir -p $(LOVE_ANDROID_ASSETS_DIR)
+	mkdir -p "$(LOVE_ANDROID_ASSETS_DIR)"
 	cp "$(DIST_FILE)" "$(LOVE_ANDROID_ASSETS_DIR)/"
 # Replace icons.
-	mkdir -p $(LOVE_ANDROID_RES_DIR)
+	mkdir -p "$(LOVE_ANDROID_RES_DIR)"
 	cp -r "$(ANDROID_ICONS)"/* "$(LOVE_ANDROID_RES_DIR)/"
 # Tweak manifest file.
 	ruby tasks/xcode/tweak_manifest.rb "$(LOVE_ANDROID_MAIN_DIR)/AndroidManifest.xml"

@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=LOVE Game
-Exec=love-game
-Icon=${SNAP}/meta/gui/love-game.svg
-Type=Application
-Categories=Game;
-Terminal=false

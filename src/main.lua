@@ -14,9 +14,9 @@ local function createEntities()
       vx = (love.math.random() * 2 - 1) * 30,
       vy = (love.math.random() * 2 - 1) * 30,
       r = 0,
-      vr = (math.random() * 2 - 1) * 2,
-      color = {math.random(255), math.random(255), math.random(255)},
-      scale = .1 + math.random() ^ 4 * .7
+      vr = (love.math.random() * 2 - 1) * 2,
+      color = {love.math.random(), love.math.random(), love.math.random()},
+      scale = .1 + love.math.random() ^ 4 * .7
     }
     table.insert(entityTable, entity)
   end
@@ -53,9 +53,9 @@ local function drawStats()
   local fps = love.timer.getFPS()
   local stats = love.graphics.getStats()
 
-  love.graphics.setColor(0, 0, 0, 255 * .75)
+  love.graphics.setColor(0, 0, 0, .75)
   love.graphics.rectangle("fill", 5, 5, 110, 45, 2)
-  love.graphics.setColor(255, 255, 255)
+  love.graphics.setColor(1, 1, 1)
   love.graphics.print("FPS: " .. fps, 10, 10)
   love.graphics.print("Draw calls: " .. stats.drawcalls, 10, 30)
 end
